@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+  # NGINX - Servidor web frontend con HTTPS
+  nginx:
+    build:
+      context: ./nginx
+      dockerfile: Dockerfile
+    container_name: lab-nginx
+    ports:
+      - "8080:80"
+      - "8443:443"
+    volumes:
+      - ./frontend:/usr/share/nginx/html:ro
+    depends_on:
+      - mitm
+    networks:
+      - lab-network
+    restart: unless-stopped
+
+  # Man-in-the-Middle Proxy (educativo)
+  mitm:
+    build:
+      context: ./mitm
+      dockerfile: Dockerfile
+    container_name: lab-mitm
+    environment:
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=8000
+    volumes:
+      - ./mitm/captures:/captures
+    depends_on:
+      - backend
+    networks:
+      - lab-network
+    restart: unless-stopped
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    # Este contenedor intercepta el tráfico entre nginx y backend
+
+  # FastAPI Backend
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: lab-backend
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app
+      - backend-data:/data
+      - logs-data:/app/logs  # A09:2021 - Logs persistentes
+    networks:
+      - lab-network
+    restart: unless-stopped
+
+  # SQLite Database
+  database:
+    image: alpine:latest
+    container_name: lab-database
+    volumes:
+      - db-data:/data
+    networks:
+      - lab-network
+    command: tail -f /dev/null
+
+# Redes
+networks:
+  lab-network:
+    driver: bridge
+    name: lab-network
+
+# Volúmenes persistentes
+volumes:
+  backend-data:
+    name: lab-backend-data
+  db-data:
+    name: lab-db-data
+  logs-data:
+    name: lab-logs-data  # A09:2021 - Persistencia de logs de seguridad

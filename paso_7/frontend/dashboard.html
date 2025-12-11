@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- Metadatos básicos -->
+    <meta name="description" content="Panel de control - Gestión de Vulnerabilidades y Usuarios">
+    <meta name="robots" content="noindex, nofollow">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    
+    <!-- Headers de seguridad configurados en NGINX (HTTP headers) -->
+    
+    <title>Dashboard - Lab Seguridad</title>
+    
+    <!-- Favicon seguro -->
+    <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico">
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/vulnerabilities.css">
+</head>
+<body class="dashboard-body">
+    
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-brand">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+            </svg>
+            <span>Lab Seguridad</span>
+        </div>
+        
+        <div class="navbar-menu">
+            <div class="navbar-user">
+                <span class="user-name" id="user-name">Usuario</span>
+                <span class="user-role" id="user-role"></span>
+            </div>
+            <button class="btn btn-logout" id="btn-logout">Cerrar Sesión</button>
+        </div>
+    </nav>
+    
+    <!-- Main Container -->
+    <div class="dashboard-container">
+        
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h3>Menú</h3>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="#vulnerabilidades" class="nav-item active" data-view="vulnerabilidades">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"></circle>
+                        <line x1="12" y1="8" x2="12" y2="12"></line>
+                        <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    </svg>
+                    <span>Vulnerabilidades</span>
+                </a>
+                
+                <a href="#usuarios" class="nav-item" data-view="usuarios">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+                        <circle cx="9" cy="7" r="4"></circle>
+                        <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+                        <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                    </svg>
+                    <span>Gestión de Usuarios</span>
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="security-badge-small">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                    <span>Conexión segura</span>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- Main Content -->
+        <main class="main-content">
+            
+            <!-- Contenedor de mensajes -->
+            <div id="message-container"></div>
+            
+            <!-- Vista Vulnerabilidades -->
+            <div id="view-vulnerabilidades" class="content-view active">
+                <div class="scroll-container">
+                    <!-- SECCIÓN 1: Resumen en tarjetas -->
+                    <section id="section-summary" class="scroll-section active">
+                        <div class="section-container">
+                            <h1 class="section-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 12px;">
+                                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                                    <line x1="3" y1="9" x2="21" y2="9"></line>
+                                    <line x1="9" y1="21" x2="9" y2="9"></line>
+                                </svg>
+                                Resumen de Vulnerabilidades
+                            </h1>
+                            <p class="section-subtitle">Visión general del estado de seguridad</p>
+                            
+                            <div class="cards-grid">
+                                <div class="stat-card critical">
+                                    <div class="stat-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"></circle>
+                                            <path d="M12 8v4"></path>
+                                            <path d="M12 16h.01"></path>
+                                        </svg>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 class="stat-value" id="stat-total">-</h3>
+                                        <p class="stat-label">Total Vulnerabilidades</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card pending">
+                                    <div class="stat-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                            <line x1="12" y1="9" x2="12" y2="13"></line>
+                                            <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                        </svg>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 class="stat-value" id="stat-pending">-</h3>
+                                        <p class="stat-label">Pendientes</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card resolved">
+                                    <div class="stat-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                            <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                        </svg>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 class="stat-value" id="stat-resolved">-</h3>
+                                        <p class="stat-label">Resueltas</p>
+                                    </div>
+                                </div>
+                                
+                                <div class="stat-card critical-count">
+                                    <div class="stat-icon">
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                                        </svg>
+                                    </div>
+                                    <div class="stat-content">
+                                        <h3 class="stat-value" id="stat-critical">-</h3>
+                                        <p class="stat-label">Críticas</p>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <div class="scroll-indicator">
+                                <span>Desliza hacia abajo</span>
+                                <div class="arrow-down">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECCIÓN 2: Gráfico circular -->
+                    <section id="section-chart" class="scroll-section">
+                        <div class="section-container">
+                            <h2 class="section-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
+                                    <line x1="12" y1="20" x2="12" y2="10"></line>
+                                    <line x1="18" y1="20" x2="18" y2="4"></line>
+                                    <line x1="6" y1="20" x2="6" y2="16"></line>
+                                </svg>
+                                Progreso de Resolución
+                            </h2>
+                            <p class="section-subtitle">Vulnerabilidades resueltas vs pendientes</p>
+                            
+                            <div class="chart-container">
+                                <canvas id="progressChart"></canvas>
+                            </div>
+                            
+                            <div class="chart-legend">
+                                <div class="legend-item">
+                                    <span class="legend-color pending-color"></span>
+                                    <span class="legend-text">Pendientes</span>
+                                    <span class="legend-value" id="legend-pending">-</span>
+                                </div>
+                                <div class="legend-item">
+                                    <span class="legend-color resolved-color"></span>
+                                    <span class="legend-text">Resueltas</span>
+                                    <span class="legend-value" id="legend-resolved">-</span>
+                                </div>
+                            </div>
+                            
+                            <div class="scroll-indicator">
+                                <span>Continúa para ver pendientes</span>
+                                <div class="arrow-down">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECCIÓN 3: Tabla de pendientes -->
+                    <section id="section-pending" class="scroll-section">
+                        <div class="section-container wide">
+                            <h2 class="section-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
+                                    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                                    <line x1="12" y1="9" x2="12" y2="13"></line>
+                                    <line x1="12" y1="17" x2="12.01" y2="17"></line>
+                                </svg>
+                                Vulnerabilidades Pendientes
+                            </h2>
+                            <p class="section-subtitle">Requieren atención inmediata</p>
+                            
+                            <div class="table-container">
+                                <table class="vulnerabilities-table">
+                                    <thead>
+                                        <tr>
+                                            <th>CVE</th>
+                                            <th>Título</th>
+                                            <th>Severidad</th>
+                                            <th>CVSS</th>
+                                            <th>Categoría OWASP</th>
+                                            <th>Detectada</th>
+                                            <th>Acción</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="pending-table-body">
+                                        <tr>
+                                            <td colspan="7" class="loading">Cargando vulnerabilidades...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="scroll-indicator">
+                                <span>Ver vulnerabilidades resueltas</span>
+                                <div class="arrow-down">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <!-- SECCIÓN 4: Tabla de resueltas -->
+                    <section id="section-resolved" class="scroll-section">
+                        <div class="section-container wide">
+                            <h2 class="section-title">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 10px;">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                                </svg>
+                                Vulnerabilidades Resueltas
+                            </h2>
+                            <p class="section-subtitle">Historial de resoluciones</p>
+                            
+                            <div class="table-container">
+                                <table class="vulnerabilities-table">
+                                    <thead>
+                                        <tr>
+                                            <th>CVE</th>
+                                            <th>Título</th>
+                                            <th>Severidad</th>
+                                            <th>CVSS</th>
+                                            <th>Categoría OWASP</th>
+                                            <th>Detectada</th>
+                                            <th>Resuelta</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="resolved-table-body">
+                                        <tr>
+                                            <td colspan="7" class="loading">Cargando vulnerabilidades resueltas...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <div class="back-to-top">
+                                <button id="btn-back-to-top">
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 6px;">
+                                        <polyline points="18 15 12 9 6 15"></polyline>
+                                    </svg>
+                                    Volver arriba
+                                </button>
+                            </div>
+                        </div>
+                    </section>
+                </div>
+            </div>
+            
+            <!-- Vista Usuarios -->
+            <div id="view-usuarios" class="content-view">
+                <div class="content-header">
+                    <h1>Gestión de Usuarios</h1>
+                </div>
+                
+                <div class="iframe-container">
+                    <!-- Contenedor para lista de usuarios (admin) -->
+                    <div id="users-list-container" class="users-container" style="display:none;">
+                        <div class="loading">Cargando usuarios...</div>
+                    </div>
+                    
+                    <!-- Contenedor para perfil de usuario (user) -->
+                    <div id="user-profile-container" class="profile-container" style="display:none;">
+                        <div class="loading">Cargando perfil...</div>
+                    </div>
+                </div>
+            </div>
+            
+        </main>
+    </div>
+
+    <!-- Modal de confirmación -->
+    <div id="confirm-modal" class="modal">
+        <div class="modal-content">
+            <h3>Confirmar Resolución</h3>
+            <p id="modal-message"></p>
+            <div class="modal-buttons">
+                <button id="btn-confirm-yes" class="btn btn-primary">Sí, resolver</button>
+                <button id="btn-confirm-no" class="btn btn-secondary">No, cancelar</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Scripts -->
+    <script src="js/utils.js"></script>
+    <!-- A08:2021 - SRI (Subresource Integrity) para Chart.js -->
+    <script src="js/vendor/chart.min.js" 
+            integrity="sha384-e6nUZLBkQ86NJ6TVVKAeSaK8jWa3NhkYWZFomE39AvDbQWeie9PlQqM3pmYW5d1g" 
+            crossorigin="anonymous"></script>
+    <script src="js/dashboard.js"></script>
+</body>
+</html>
+

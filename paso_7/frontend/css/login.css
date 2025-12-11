@@ -1,0 +1,21 @@
+/**
+ * Estilos específicos para la página de login
+ */
+
+/* Ajustes adicionales para login */
+.login-card {
+    animation-delay: 0.2s;
+}
+
+/* Animación del formulario */
+#login-form {
+    animation: fadeIn 0.8s ease;
+    animation-delay: 0.4s;
+    animation-fill-mode: backwards;
+}
+
+/* Efecto hover en inputs */
+.form-group input:hover {
+    border-color: var(--gray-400);
+}
+
