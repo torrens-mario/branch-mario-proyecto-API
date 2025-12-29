@@ -1,10 +1,11 @@
 #!/bin/bash
 
 # ============================================================================
-# SETUP.SH - Configuración Inicial del Proyecto
+# SETUP.SH - Configuración Inicial del Proyecto (v2 - Compatible)
 # ============================================================================
 # Este script configura automáticamente todo lo necesario para ejecutar
 # el proyecto después de clonarlo desde GitHub
+# Compatible con Docker Compose v1 (docker-compose) y v2 (docker compose)
 # ============================================================================
 
 set -e  # Salir si hay algún error
@@ -15,6 +16,20 @@ echo "║         CONFIGURACIÓN INICIAL DEL PROYECTO                    ║"
 echo "║         Agriculture IoT API - Asset Management                ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
+
+# ============================================================================
+# DETECTAR VERSIÓN DE DOCKER COMPOSE
+# ============================================================================
+if docker compose version &> /dev/null 2>&1; then
+    DOCKER_COMPOSE="docker compose"
+    COMPOSE_VERSION="v2 (plugin)"
+elif command -v docker-compose &> /dev/null; then
+    DOCKER_COMPOSE="docker-compose"
+    COMPOSE_VERSION="v1 (standalone)"
+else
+    DOCKER_COMPOSE=""
+    COMPOSE_VERSION="no instalado"
+fi
 
 # ============================================================================
 # 1. VERIFICAR DEPENDENCIAS DEL SISTEMA
@@ -32,12 +47,23 @@ fi
 echo "  ✅ Docker: $(docker --version)"
 
 # Verificar Docker Compose
-if ! command -v docker-compose &> /dev/null; then
+if [ -z "$DOCKER_COMPOSE" ]; then
     echo "❌ ERROR: Docker Compose no está instalado"
-    echo "   Instalar desde: https://docs.docker.com/compose/install/"
+    echo ""
+    echo "   Opciones de instalación:"
+    echo ""
+    echo "   Opción 1 - Docker Compose v2 (Recomendado):"
+    echo "   sudo apt-get update"
+    echo "   sudo apt-get install docker-compose-plugin"
+    echo ""
+    echo "   Opción 2 - Docker Compose v1:"
+    echo "   sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
+    echo "   sudo chmod +x /usr/local/bin/docker-compose"
+    echo ""
     exit 1
 fi
-echo "  ✅ Docker Compose: $(docker-compose --version)"
+echo "  ✅ Docker Compose: $COMPOSE_VERSION"
+$DOCKER_COMPOSE version | head -1
 
 # Verificar OpenSSL (para generar certificados)
 if ! command -v openssl &> /dev/null; then
@@ -189,7 +215,7 @@ ALLOWED_ORIGINS=https://localhost,https://127.0.0.1,http://localhost,http://127.
 
 # ===== APLICACIÓN =====
 ENVIRONMENT=development
-API_PORT=8000
+API_PORT=8002
 
 # ===== LOGGING =====
 LOG_LEVEL=INFO
@@ -214,7 +240,7 @@ echo "════════════════════════�
 
 if [ -f "database/data.db" ]; then
     echo "  ℹ️  Base de datos ya existe (database/data.db)"
-    echo "     Tamaño: $(du -h database/data.db | cut -f1)"
+    echo "     Tamaño: $(du -h database/data.db 2>/dev/null | cut -f1 || echo 'N/A')"
 else
     echo "  📊 Creando base de datos vacía..."
     touch database/data.db
@@ -284,7 +310,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
     echo "  🐳 Construyendo imágenes Docker..."
-    docker-compose build --no-cache
+    $DOCKER_COMPOSE build --no-cache
     echo "  ✅ Imágenes Docker construidas"
 fi
 
@@ -294,7 +320,7 @@ echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo ""
     echo "  🚀 Iniciando servicios..."
-    docker-compose up -d
+    $DOCKER_COMPOSE up -d
     echo ""
     echo "  ⏳ Esperando que los servicios estén listos..."
     sleep 5
@@ -302,17 +328,17 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     # Verificar estado de los servicios
     echo ""
     echo "  📊 Estado de los servicios:"
-    docker-compose ps
+    $DOCKER_COMPOSE ps
     
     echo ""
     echo "  🔍 Verificando health check..."
     for i in {1..10}; do
-        if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        if curl -s http://localhost:8002/health > /dev/null 2>&1; then
             echo "  ✅ API respondiendo correctamente"
             break
         else
             if [ $i -eq 10 ]; then
-                echo "  ⚠️  API no responde (verificar logs con: docker-compose logs api)"
+                echo "  ⚠️  API no responde (verificar logs con: $DOCKER_COMPOSE logs api)"
             else
                 echo "  ⏳ Esperando API... (intento $i/10)"
                 sleep 3
@@ -331,33 +357,11 @@ echo "╚═══════════════════════�
 echo ""
 echo "🎉 El proyecto está listo para usar"
 echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "📝 COMANDOS ÚTILES:"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo ""
-echo "  🚀 Iniciar servicios:"
-echo "     docker-compose up -d"
-echo ""
-echo "  🛑 Detener servicios:"
-echo "     docker-compose down"
-echo ""
-echo "  📊 Ver estado de servicios:"
-echo "     docker-compose ps"
-echo ""
-echo "  📝 Ver logs:"
-echo "     docker-compose logs -f api"
-echo ""
-echo "  🔄 Reiniciar servicios:"
-echo "     docker-compose restart"
-echo ""
-echo "  👤 Crear usuario administrador:"
-echo "     python3 crear_admin.py"
-echo ""
+echo
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🌐 URLS DE ACCESO:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "  📡 API Backend:          http://localhost:8000"
 echo "  📚 Documentación API:    http://localhost:8000/docs"
 echo "  ❤️  Health Check:         http://localhost:8000/health"
 echo "  🌐 Frontend:             http://localhost:80"
@@ -369,12 +373,6 @@ echo "━━━━━━━━━━━━━━━━━━━━━━━━�
 echo ""
 echo "  🔐 Los certificados SSL son autofirmados (tu navegador mostrará"
 echo "     advertencia de seguridad - es normal en desarrollo)"
-echo ""
-echo "  🔑 SECRET_KEY generada automáticamente en .env"
-echo "     Para producción, generar una nueva con:"
-echo "     python3 -c \"import secrets; print(secrets.token_urlsafe(32))\""
-echo ""
-echo "  🚫 NUNCA subir archivos .env, .db, .key, .pem al repositorio"
 echo ""
 echo "  📖 Para más información, consultar README.md"
 echo ""
