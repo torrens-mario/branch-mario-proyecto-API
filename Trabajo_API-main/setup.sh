@@ -173,7 +173,7 @@ LOG_LEVEL=INFO
 LOG_FILE=logs/api.log
 EOF
 
-    chmod 600 .env
+    chmod 644 .env
     echo "  ✅ Archivo .env creado"
 fi
 
