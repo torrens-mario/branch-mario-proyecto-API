@@ -1,0 +1,141 @@
+# ============================================================================
+# .gitignore - Archivos a ignorar en el repositorio Git
+# ============================================================================
+
+# ===== Python =====
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ===== Entornos Virtuales =====
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+virtualenv/
+
+# ===== IDEs y Editores =====
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+
+# ===== Variables de Entorno (CRÍTICO) =====
+.env
+.env.local
+.env.*.local
+*.env
+!.env.example
+
+# ===== Base de Datos (CRÍTICO) =====
+*.db
+*.sqlite
+*.sqlite3
+database/*.db
+database/*.sqlite
+database/*.sqlite3
+
+# ===== Logs =====
+*.log
+logs/
+*.log.*
+log/
+
+# ===== Certificados y Claves (CRÍTICO) =====
+*.key
+*.pem
+*.crt
+*.p12
+*.pfx
+*.der
+*.cer
+certs/
+**/certs/
+**/certs/*.key
+**/certs/*.pem
+**/certs/*.crt
+**/nginx_certs/
+**/nginx_certs/*.key
+**/nginx_certs/*.crt
+
+# ===== Backups =====
+*.backup
+*.bak
+*.old
+*.orig
+*.tmp
+*-backup
+*-old
+
+# ===== Docker =====
+docker-compose.override.yml
+.dockerignore
+
+# ===== Coverage y Testing =====
+htmlcov/
+.tox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+.pytest_cache
+
+# ===== Jupyter Notebooks =====
+.ipynb_checkpoints
+*.ipynb
+
+# ===== Sistema Operativo =====
+Thumbs.db
+Desktop.ini
+.DS_Store
+.Spotlight-V100
+.Trashes
+
+# ===== Archivos temporales =====
+*.tmp
+*.temp
+.tmp/
+tmp/
+
+# ===== Node (si se usa para frontend) =====
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+yarn.lock
+
+# ===== Datos sensibles =====
+secrets/
+credentials/
+*.credentials
+*.secret
