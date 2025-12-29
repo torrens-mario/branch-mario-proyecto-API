@@ -1,5 +1,6 @@
 /**
  * Estilos específicos para gestión de vulnerabilidades
+ * ✅ ACTUALIZADO: Añadido estilo para botón ELIMINAR
  */
 
 /* Badges de severidad */
@@ -93,6 +94,30 @@
 .vuln-link:hover {
     background-color: var(--info-color);
     color: white;
+}
+
+/* ✅ NUEVO: Botón eliminar vulnerabilidad */
+.btn-delete {
+    background-color: #dc3545;
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-weight: 500;
+}
+
+.btn-delete:hover {
+    background-color: #c82333;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+}
+
+.btn-delete:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 4px rgba(220, 53, 69, 0.2);
 }
 
 /* Modal de vincular vulnerabilidad */
