@@ -7,7 +7,8 @@
 # Sus principales funcionalidades son: 
 #   - Hacer consultas filtradas com paginacion para hacer consultas eficientes
 #   - Creacion de nuevas vulnerabilidades con validacion previa
-#   - Crear asociaciones entre vulnerabilidades y activos, para vincular estos#
+#   - Crear asociaciones entre vulnerabilidades y activos, para vincular estos
+#   - ✅ NUEVO: Eliminar vulnerabilidades (solo administradores)
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Path, status
 from sqlmodel import Session, select, or_
@@ -69,6 +70,47 @@ def create_vulnerability(
     session.refresh(db_vuln)
     logger.info(f"Admin {current_user['username']} created {db_vuln.cve_id}")
     return db_vuln
+
+@router.delete("/{vuln_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_vulnerability(
+    vuln_id: int = Path(..., gt=0),
+    current_user: dict = Depends(require_admin),
+    session: Session = Depends(get_session)
+):
+    """
+    Eliminar una vulnerabilidad.
+    Solo accesible por administradores.
+    
+    ✅ NUEVA FUNCIONALIDAD
+    """
+    # Buscar la vulnerabilidad
+    vuln = session.get(asset_models.Vulnerability, vuln_id)
+    
+    if not vuln:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Vulnerability with id {vuln_id} not found"
+        )
+    
+    # Eliminar primero las relaciones con activos (AssetVulnerability)
+    links = session.exec(
+        select(asset_models.AssetVulnerability).where(
+            asset_models.AssetVulnerability.vulnerability_id == vuln_id
+        )
+    ).all()
+    
+    for link in links:
+        session.delete(link)
+    
+    # Eliminar la vulnerabilidad
+    cve_id = vuln.cve_id  # Guardar para logging
+    session.delete(vuln)
+    session.commit()
+    
+    logger.info(f"Admin {current_user['username']} deleted vulnerability {cve_id} (id: {vuln_id})")
+    
+    # HTTP 204 No Content no debe devolver nada
+    return None
 
 @router.post("/assets/{asset_id}/vulnerabilities/{vuln_id}", status_code=201)
 def link_vulnerability_to_asset(
