@@ -1,6 +1,7 @@
 /**
  * Lógica para gestión de vulnerabilidades
  * Archivo: frontend/js/vulnerabilities.js
+ * ✅ ACTUALIZADO: Añadido botón ELIMINAR vulnerabilidades
  */
 
 // Estado global de vulnerabilidades
@@ -123,6 +124,13 @@ function updateVulnerabilitiesTable() {
             btnLink.textContent = 'Vincular';
             btnLink.addEventListener('click', () => openLinkVulnModal(vuln));
             tdActions.appendChild(btnLink);
+            
+            // ✅ NUEVO: Botón ELIMINAR
+            const btnDelete = document.createElement('button');
+            btnDelete.className = 'btn-action btn-delete';
+            btnDelete.textContent = 'Eliminar';
+            btnDelete.addEventListener('click', () => deleteVulnerability(vuln));
+            tdActions.appendChild(btnDelete);
         } else {
             const spanNoAccess = document.createElement('span');
             spanNoAccess.className = 'no-access';
@@ -170,6 +178,33 @@ async function createVulnerability(vulnData) {
     } catch (error) {
         console.error('Error detallado:', error);
         showMessage('Error: ' + error.message, 'error');
+    }
+}
+
+// ========================================
+// ELIMINAR VULNERABILIDAD
+// ✅ NUEVA FUNCIÓN
+// ========================================
+
+async function deleteVulnerability(vuln) {
+    // Confirmación antes de eliminar
+    if (!confirm(`¿Estás seguro de que deseas eliminar la vulnerabilidad ${vuln.cve_id}?\n\nEsta acción no se puede deshacer.`)) {
+        return;
+    }
+    
+    try {
+        showMessage('Eliminando vulnerabilidad...', 'info');
+        
+        // Llamar al endpoint DELETE
+        await deleteData(`/vulnerabilities/${vuln.id}`);
+        
+        showMessage('Vulnerabilidad eliminada correctamente', 'success');
+        
+        // Recargar la lista de vulnerabilidades
+        await loadVulnerabilities();
+    } catch (error) {
+        console.error('Error eliminando vulnerabilidad:', error);
+        showMessage('Error al eliminar vulnerabilidad: ' + error.message, 'error');
     }
 }
 
