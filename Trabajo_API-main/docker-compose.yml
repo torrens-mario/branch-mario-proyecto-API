@@ -1,0 +1,39 @@
+version: '3.9'
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    
+    container_name: secure_api_app
+    restart: unless-stopped
+    
+    ports:
+      - "${API_PORT:-8000}:8000"
+    
+    env_file:
+      - .env
+    
+    volumes:
+      - ./app:/app/app:ro
+      - ./logs:/app/logs
+      - ./database:/app/database
+    
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    
+    networks:
+      - secure_api_network
+    
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  secure_api_network:
+    driver: bridge
+    name: secure_api_network
