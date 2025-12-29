@@ -1,6 +1,6 @@
 /**
  * Utilidades compartidas - Sistema de Inventario de Activos IT
- * VERSIÓN CORREGIDA: Manejo robusto de errores JSON
+ * VERSIÓN CORREGIDA: Manejo robusto de errores JSON + Autenticación en POST
  */
 
 const API_BASE = "/api";
@@ -111,22 +111,32 @@ async function safeJsonParse(response) {
 
 /**
  * Realiza petición POST
+ * ✅ CORREGIDO: Ahora incluye token de autenticación
  */
 async function postData(url, data) {
     try {
+        const token = getStorage('token'); // ✅ AÑADIDO
+        
         console.log('POST Request:', API_BASE + url, data);
         
         const response = await fetch(API_BASE + url, {
             method: 'POST',
             headers: { 
                 'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Accept': 'application/json',
+                'Authorization': token ? `Bearer ${token}` : '' // ✅ AÑADIDO
             },
             body: JSON.stringify(data)
         });
         
         console.log('Response status:', response.status);
         console.log('Response headers:', [...response.headers.entries()]);
+        
+        // ✅ AÑADIDO: Verificar sesión expirada
+        if (response.status === 401) {
+            logout();
+            throw new Error('Sesión expirada. Por favor, inicia sesión nuevamente.');
+        }
         
         const responseData = await safeJsonParse(response);
         
