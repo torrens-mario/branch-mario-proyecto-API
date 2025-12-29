@@ -1,18 +1,20 @@
 #!/bin/bash
 
 # ============================================================================
-# SETUP.SH - Configuración Inicial del Proyecto (v2 - Compatible)
+# SETUP.SH - Configuración e Inicio Completo del Proyecto
 # ============================================================================
-# Este script configura automáticamente todo lo necesario para ejecutar
-# el proyecto después de clonarlo desde GitHub
-# Compatible con Docker Compose v1 (docker-compose) y v2 (docker compose)
+# Este script configura TODO y arranca TODOS los servicios usando
+# el docker-compose de agriculture-iot que incluye:
+# - API Backend
+# - Frontend Web  
+# - Servicios IoT (MQTT, Gateway, Sensores)
 # ============================================================================
 
 set -e  # Salir si hay algún error
 
 echo ""
 echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║         CONFIGURACIÓN INICIAL DEL PROYECTO                    ║"
+echo "║         CONFIGURACIÓN E INICIO COMPLETO DEL PROYECTO          ║"
 echo "║         Agriculture IoT API - Asset Management                ║"
 echo "╚════════════════════════════════════════════════════════════════╝"
 echo ""
@@ -38,45 +40,26 @@ echo "════════════════════════�
 echo "1️⃣  VERIFICANDO DEPENDENCIAS DEL SISTEMA"
 echo "═══════════════════════════════════════════════════════════════"
 
-# Verificar Docker
 if ! command -v docker &> /dev/null; then
     echo "❌ ERROR: Docker no está instalado"
-    echo "   Instalar desde: https://docs.docker.com/get-docker/"
     exit 1
 fi
 echo "  ✅ Docker: $(docker --version)"
 
-# Verificar Docker Compose
 if [ -z "$DOCKER_COMPOSE" ]; then
     echo "❌ ERROR: Docker Compose no está instalado"
-    echo ""
-    echo "   Opciones de instalación:"
-    echo ""
-    echo "   Opción 1 - Docker Compose v2 (Recomendado):"
-    echo "   sudo apt-get update"
-    echo "   sudo apt-get install docker-compose-plugin"
-    echo ""
-    echo "   Opción 2 - Docker Compose v1:"
-    echo "   sudo curl -L \"https://github.com/docker/compose/releases/latest/download/docker-compose-\$(uname -s)-\$(uname -m)\" -o /usr/local/bin/docker-compose"
-    echo "   sudo chmod +x /usr/local/bin/docker-compose"
-    echo ""
     exit 1
 fi
 echo "  ✅ Docker Compose: $COMPOSE_VERSION"
-$DOCKER_COMPOSE version | head -1
 
-# Verificar OpenSSL (para generar certificados)
 if ! command -v openssl &> /dev/null; then
     echo "❌ ERROR: OpenSSL no está instalado"
-    echo "   Instalar: sudo apt-get install openssl (Linux)"
-    echo "            brew install openssl (macOS)"
     exit 1
 fi
 echo "  ✅ OpenSSL: $(openssl version)"
 
-# Verificar Python3 (para generar SECRET_KEY)
 if ! command -v python3 &> /dev/null; then
-    echo "⚠️  WARNING: Python3 no encontrado (usando fallback para SECRET_KEY)"
+    echo "⚠️  WARNING: Python3 no encontrado"
     PYTHON_AVAILABLE=false
 else
     echo "  ✅ Python3: $(python3 --version)"
@@ -92,11 +75,7 @@ echo "════════════════════════�
 echo "2️⃣  CREANDO ESTRUCTURA DE DIRECTORIOS"
 echo "═══════════════════════════════════════════════════════════════"
 
-# Crear directorios necesarios
-mkdir -p database
-mkdir -p logs
-mkdir -p frontend/certs
-mkdir -p agriculture-iot/nginx_certs
+mkdir -p database logs frontend/certs agriculture-iot/nginx_certs
 
 echo "  ✅ database/"
 echo "  ✅ logs/"
@@ -105,276 +84,303 @@ echo "  ✅ agriculture-iot/nginx_certs/"
 echo ""
 
 # ============================================================================
-# 3. GENERAR CERTIFICADOS SSL/TLS
+# 3. CONFIGURAR PERMISOS CORRECTOS
 # ============================================================================
 echo "═══════════════════════════════════════════════════════════════"
-echo "3️⃣  GENERANDO CERTIFICADOS SSL/TLS"
+echo "3️⃣  CONFIGURANDO PERMISOS (CRÍTICO)"
 echo "═══════════════════════════════════════════════════════════════"
 
-# Certificados para Frontend
+# Permisos para database y logs (necesitan escritura)
+chmod 777 database/ logs/ 2>/dev/null || sudo chmod 777 database/ logs/
+touch database/data.db
+chmod 666 database/data.db 2>/dev/null || sudo chmod 666 database/data.db
+
+echo "  ✅ Permisos configurados para database/ y logs/"
+echo ""
+
+# ============================================================================
+# 4. GENERAR CERTIFICADOS SSL/TLS
+# ============================================================================
+echo "═══════════════════════════════════════════════════════════════"
+echo "4️⃣  GENERANDO CERTIFICADOS SSL/TLS"
+echo "═══════════════════════════════════════════════════════════════"
+
 if [ ! -f "frontend/certs/cert.pem" ]; then
     echo "  🔑 Generando certificados para frontend..."
     openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
         -keyout frontend/certs/key.pem \
         -out frontend/certs/cert.pem \
-        -subj "/C=ES/ST=Andalusia/L=Malaga/O=Development/OU=IT Department/CN=localhost" \
+        -subj "/C=ES/ST=Andalusia/L=Malaga/O=Development/CN=localhost" \
         2>/dev/null
-    
-    # Establecer permisos seguros
-    chmod 600 frontend/certs/key.pem
-    chmod 644 frontend/certs/cert.pem
-    
     echo "  ✅ Certificados frontend generados"
-    echo "     - frontend/certs/key.pem (clave privada)"
-    echo "     - frontend/certs/cert.pem (certificado)"
 else
-    echo "  ℹ️  Certificados frontend ya existen (omitiendo)"
+    echo "  ℹ️  Certificados frontend ya existen"
 fi
 
-# Certificados para IoT/MQTT
+# CRÍTICO: Configurar permisos de certificados del frontend
+chmod 644 frontend/certs/key.pem 2>/dev/null || sudo chmod 644 frontend/certs/key.pem
+chmod 644 frontend/certs/cert.pem 2>/dev/null || sudo chmod 644 frontend/certs/cert.pem
+echo "  ✅ Permisos de certificados frontend configurados"
+
 if [ ! -f "agriculture-iot/nginx_certs/server.crt" ]; then
     echo "  🔑 Generando certificados para servicio IoT..."
     openssl req -x509 -nodes -days 365 -newkey rsa:4096 \
         -keyout agriculture-iot/nginx_certs/server.key \
         -out agriculture-iot/nginx_certs/server.crt \
-        -subj "/C=ES/ST=Andalusia/L=Malaga/O=Development/OU=IoT Department/CN=localhost" \
+        -subj "/C=ES/ST=Andalusia/L=Malaga/O=Development/CN=localhost" \
         2>/dev/null
-    
-    # Establecer permisos seguros
-    chmod 600 agriculture-iot/nginx_certs/server.key
-    chmod 644 agriculture-iot/nginx_certs/server.crt
-    
     echo "  ✅ Certificados IoT generados"
-    echo "     - agriculture-iot/nginx_certs/server.key (clave privada)"
-    echo "     - agriculture-iot/nginx_certs/server.crt (certificado)"
 else
-    echo "  ℹ️  Certificados IoT ya existen (omitiendo)"
+    echo "  ℹ️  Certificados IoT ya existen"
 fi
 
-echo ""
-echo "  ⚠️  NOTA: Los certificados son autofirmados (solo para desarrollo)"
-echo "            Para producción, usar certificados válidos de una CA"
+# CRÍTICO: Configurar permisos de certificados IoT
+chmod 644 agriculture-iot/nginx_certs/server.key 2>/dev/null || sudo chmod 644 agriculture-iot/nginx_certs/server.key
+chmod 644 agriculture-iot/nginx_certs/server.crt 2>/dev/null || sudo chmod 644 agriculture-iot/nginx_certs/server.crt
+echo "  ✅ Permisos de certificados IoT configurados"
+
 echo ""
 
 # ============================================================================
-# 4. GENERAR ARCHIVO .env
+# 5. GENERAR ARCHIVO .env
 # ============================================================================
 echo "═══════════════════════════════════════════════════════════════"
-echo "4️⃣  CONFIGURANDO VARIABLES DE ENTORNO (.env)"
+echo "5️⃣  CONFIGURANDO VARIABLES DE ENTORNO (.env)"
 echo "═══════════════════════════════════════════════════════════════"
 
 if [ -f ".env" ]; then
-    echo "  ⚠️  Archivo .env ya existe"
-    echo ""
-    read -p "  ¿Desea sobrescribirlo? (y/N): " -n 1 -r
-    echo
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        echo "  ℹ️  Conservando .env existente"
-        SKIP_ENV=true
-    else
-        SKIP_ENV=false
-    fi
+    echo "  ℹ️  Archivo .env ya existe (conservando)"
 else
-    SKIP_ENV=false
-fi
-
-if [ "$SKIP_ENV" = false ]; then
     echo "  📝 Creando archivo .env..."
     
-    # Generar SECRET_KEY segura
     if [ "$PYTHON_AVAILABLE" = true ]; then
         SECRET_KEY=$(python3 -c "import secrets; print(secrets.token_urlsafe(32))")
-        echo "  🔑 SECRET_KEY generada con Python (cryptographically secure)"
     else
         SECRET_KEY=$(openssl rand -base64 32 | tr -d "=+/" | cut -c1-32)
-        echo "  🔑 SECRET_KEY generada con OpenSSL (fallback)"
     fi
     
-    # Crear archivo .env
     cat > .env << EOF
-# ============================================================================
-# CONFIGURACIÓN DE LA API - GENERADO AUTOMÁTICAMENTE
-# ============================================================================
-# Generado por setup.sh el $(date)
-# ⚠️  NO subir este archivo al repositorio
-# ============================================================================
-
-# ===== SEGURIDAD (CRÍTICO) =====
+# Configuración generada por setup.sh el $(date)
 SECRET_KEY=${SECRET_KEY}
 ALGORITHM=HS256
 ACCESS_TOKEN_EXPIRE_MINUTES=15
 REFRESH_TOKEN_EXPIRE_DAYS=7
-
-# ===== BASE DE DATOS =====
 DATABASE_URL=sqlite:///./database/data.db
-
-# ===== CORS =====
-# Dominios permitidos (separados por comas, sin espacios)
-# Para producción, cambiar por dominios reales
 ALLOWED_ORIGINS=https://localhost,https://127.0.0.1,http://localhost,http://127.0.0.1
-
-# ===== APLICACIÓN =====
 ENVIRONMENT=development
-API_PORT=8002
-
-# ===== LOGGING =====
+API_PORT=8000
 LOG_LEVEL=INFO
 LOG_FILE=logs/api.log
 EOF
 
-    # Establecer permisos seguros para .env
     chmod 600 .env
-    
-    echo "  ✅ Archivo .env creado con SECRET_KEY segura"
-    echo "     Longitud de SECRET_KEY: ${#SECRET_KEY} caracteres"
+    echo "  ✅ Archivo .env creado"
 fi
 
 echo ""
 
 # ============================================================================
-# 5. INICIALIZAR BASE DE DATOS
+# 6. DETENER SERVICIOS ANTERIORES
 # ============================================================================
 echo "═══════════════════════════════════════════════════════════════"
-echo "5️⃣  INICIALIZANDO BASE DE DATOS"
+echo "6️⃣  DETENIENDO SERVICIOS ANTERIORES (si existen)"
 echo "═══════════════════════════════════════════════════════════════"
 
-if [ -f "database/data.db" ]; then
-    echo "  ℹ️  Base de datos ya existe (database/data.db)"
-    echo "     Tamaño: $(du -h database/data.db 2>/dev/null | cut -f1 || echo 'N/A')"
-else
-    echo "  📊 Creando base de datos vacía..."
-    touch database/data.db
-    chmod 644 database/data.db
-    echo "  ✅ Base de datos creada (database/data.db)"
-    echo "     Se inicializará automáticamente al arrancar la API"
-fi
+# Detener docker-compose de la raíz si existe
+$DOCKER_COMPOSE down 2>/dev/null || true
 
+# Detener servicios de agriculture-iot
+cd agriculture-iot && $DOCKER_COMPOSE down 2>/dev/null || true && cd ..
+
+echo "  ✅ Servicios anteriores detenidos"
 echo ""
 
 # ============================================================================
-# 6. VERIFICAR ARCHIVOS DOCKER
+# 7. CONSTRUIR E INICIAR TODOS LOS SERVICIOS
 # ============================================================================
 echo "═══════════════════════════════════════════════════════════════"
-echo "6️⃣  VERIFICANDO CONFIGURACIÓN DOCKER"
+echo "7️⃣  CONSTRUYENDO E INICIANDO TODOS LOS SERVICIOS"
 echo "═══════════════════════════════════════════════════════════════"
 
-if [ ! -f "docker-compose.yml" ]; then
-    echo "  ❌ ERROR: docker-compose.yml no encontrado"
-    exit 1
-fi
-echo "  ✅ docker-compose.yml encontrado"
+cd agriculture-iot
 
-if [ ! -f "Dockerfile" ]; then
-    echo "  ❌ ERROR: Dockerfile no encontrado"
-    exit 1
-fi
-echo "  ✅ Dockerfile encontrado"
+echo "  🐳 Construyendo todas las imágenes Docker..."
+echo "     (esto puede tardar varios minutos la primera vez)"
+$DOCKER_COMPOSE build --no-cache
 
-if [ ! -f "requirements.txt" ]; then
-    echo "  ❌ ERROR: requirements.txt no encontrado"
-    exit 1
-fi
-echo "  ✅ requirements.txt encontrado"
+echo ""
+echo "  🚀 Iniciando todos los servicios..."
+echo "     - API Backend"
+echo "     - Frontend Web"
+echo "     - MQTT Broker"
+echo "     - MQTT Gateway"
+echo "     - Sensores IoT"
 
+$DOCKER_COMPOSE up -d
+
+cd ..
+
+echo ""
+echo "  ✅ Todos los servicios iniciados"
 echo ""
 
 # ============================================================================
-# 7. RESUMEN DE CONFIGURACIÓN
+# 8. ESPERAR A QUE LOS SERVICIOS ESTÉN LISTOS
 # ============================================================================
 echo "═══════════════════════════════════════════════════════════════"
-echo "7️⃣  RESUMEN DE CONFIGURACIÓN"
+echo "8️⃣  ESPERANDO A QUE LOS SERVICIOS ESTÉN LISTOS"
 echo "═══════════════════════════════════════════════════════════════"
 
-echo ""
-echo "📁 Estructura de archivos:"
-echo "   ├── .env                              ✅ Configurado"
-echo "   ├── database/data.db                  ✅ Creado"
-echo "   ├── frontend/certs/                   ✅ Certificados generados"
-echo "   │   ├── cert.pem"
-echo "   │   └── key.pem"
-echo "   └── agriculture-iot/nginx_certs/      ✅ Certificados generados"
-echo "       ├── server.crt"
-echo "       └── server.key"
-echo ""
-
-# ============================================================================
-# 8. OPCIONES ADICIONALES
-# ============================================================================
-echo "═══════════════════════════════════════════════════════════════"
-echo "8️⃣  OPCIONES ADICIONALES"
-echo "═══════════════════════════════════════════════════════════════"
-
-echo ""
-read -p "¿Desea construir las imágenes Docker ahora? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    echo "  🐳 Construyendo imágenes Docker..."
-    $DOCKER_COMPOSE build --no-cache
-    echo "  ✅ Imágenes Docker construidas"
-fi
-
-echo ""
-read -p "¿Desea iniciar los servicios ahora? (y/N): " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    echo ""
-    echo "  🚀 Iniciando servicios..."
-    $DOCKER_COMPOSE up -d
-    echo ""
-    echo "  ⏳ Esperando que los servicios estén listos..."
-    sleep 5
-    
-    # Verificar estado de los servicios
-    echo ""
-    echo "  📊 Estado de los servicios:"
-    $DOCKER_COMPOSE ps
-    
-    echo ""
-    echo "  🔍 Verificando health check..."
-    for i in {1..10}; do
-        if curl -s http://localhost:8002/health > /dev/null 2>&1; then
-            echo "  ✅ API respondiendo correctamente"
-            break
+echo "  ⏳ Esperando API (puede tardar 30-60 segundos en la primera ejecución)..."
+API_READY=false
+for i in {1..30}; do
+    if curl -s http://localhost:8000/health > /dev/null 2>&1; then
+        echo "  ✅ API respondiendo correctamente"
+        API_READY=true
+        break
+    else
+        if [ $i -eq 30 ]; then
+            echo "  ⚠️  API tardó más de lo esperado"
+            echo "     Verificar logs: cd agriculture-iot && $DOCKER_COMPOSE logs asset-api"
         else
-            if [ $i -eq 10 ]; then
-                echo "  ⚠️  API no responde (verificar logs con: $DOCKER_COMPOSE logs api)"
-            else
-                echo "  ⏳ Esperando API... (intento $i/10)"
-                sleep 3
-            fi
+            sleep 2
         fi
-    done
-fi
+    fi
+done
+
+echo ""
+echo "  ⏳ Esperando Frontend (puede tardar 10-20 segundos)..."
+FRONTEND_READY=false
+for i in {1..20}; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:80 | grep -q "301\|200"; then
+        echo "  ✅ Frontend respondiendo correctamente"
+        FRONTEND_READY=true
+        break
+    else
+        if [ $i -eq 20 ]; then
+            echo "  ⚠️  Frontend tardó más de lo esperado"
+            echo "     Verificar logs: cd agriculture-iot && $DOCKER_COMPOSE logs frontend"
+        else
+            sleep 1
+        fi
+    fi
+done
+
+echo ""
 
 # ============================================================================
-# 9. INSTRUCCIONES FINALES
+# 9. MOSTRAR ESTADO DE SERVICIOS
 # ============================================================================
+echo "═══════════════════════════════════════════════════════════════"
+echo "9️⃣  ESTADO DE TODOS LOS SERVICIOS"
+echo "═══════════════════════════════════════════════════════════════"
+
 echo ""
-echo "╔════════════════════════════════════════════════════════════════╗"
-echo "║           CONFIGURACIÓN COMPLETADA CON ÉXITO ✅               ║"
-echo "╚════════════════════════════════════════════════════════════════╝"
+cd agriculture-iot && $DOCKER_COMPOSE ps && cd ..
+
 echo ""
-echo "🎉 El proyecto está listo para usar"
+
+# ============================================================================
+# 10. VERIFICACIÓN FINAL
+# ============================================================================
+echo "═══════════════════════════════════════════════════════════════"
+echo "🔟 VERIFICACIÓN FINAL"
+echo "═══════════════════════════════════════════════════════════════"
+
 echo ""
-echo
+ERRORS=0
+
+if [ "$API_READY" = true ]; then
+    echo "  ✅ API Backend: Funcionando"
+else
+    echo "  ❌ API Backend: No responde"
+    ERRORS=$((ERRORS + 1))
+fi
+
+if [ "$FRONTEND_READY" = true ]; then
+    echo "  ✅ Frontend: Funcionando"
+else
+    echo "  ❌ Frontend: No responde"
+    ERRORS=$((ERRORS + 1))
+fi
+
+echo ""
+
+# ============================================================================
+# 11. INSTRUCCIONES FINALES
+# ============================================================================
+
+if [ $ERRORS -eq 0 ]; then
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║           SISTEMA COMPLETAMENTE INICIADO ✅                   ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+else
+    echo "╔════════════════════════════════════════════════════════════════╗"
+    echo "║        SISTEMA INICIADO CON ALGUNOS PROBLEMAS ⚠️              ║"
+    echo "╚════════════════════════════════════════════════════════════════╝"
+fi
+
+echo ""
+echo "🎉 Servicios iniciados"
+echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "🌐 URLS DE ACCESO:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "  📚 Documentación API:    http://localhost:8000/docs"
-echo "  ❤️  Health Check:         http://localhost:8000/health"
-echo "  🌐 Frontend:             http://localhost:80"
-echo "  🔒 Frontend HTTPS:       https://localhost:443"
+echo "  📡 API Backend:           http://localhost:8000"
+echo "  📚 Documentación API:     http://localhost:8000/docs"
+echo "  ❤️  Health Check:          http://localhost:8000/health"
+echo ""
+echo "  🌐 Frontend (Dashboard):  http://localhost:80  (redirige a HTTPS)"
+echo "  🔒 Frontend HTTPS:        https://localhost:443"
+echo ""
+echo "  🔌 MQTT Broker:           mqtt://localhost:1883"
+echo "  🌐 MQTT WebSocket:        ws://localhost:9001"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "⚠️  IMPORTANTE:"
+echo "👤 CREDENCIALES DE ACCESO:"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-echo "  🔐 Los certificados SSL son autofirmados (tu navegador mostrará"
-echo "     advertencia de seguridad - es normal en desarrollo)"
+echo "  Usuario:  superjefe"
+echo "  Password: P@ssw0rd!"
 echo ""
-echo "  📖 Para más información, consultar README.md"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🔍 VERIFICAR SERVICIOS MANUALMENTE:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  📡 API Health Check:"
+echo "     curl http://localhost:8000/health"
+echo ""
+echo "  🌐 Frontend:"
+echo "     curl -I http://localhost:80"
+echo ""
+echo "  🔌 MQTT Broker (requiere mosquitto_sub instalado):"
+echo "     mosquitto_sub -h localhost -p 1883 -t 'sensors/#' -v"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "⚠️  RECORDATORIOS:"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo ""
+echo "  🔐 Certificados SSL autofirmados"
+echo "     → Tu navegador mostrará advertencia de seguridad"
+echo "     → Es normal en desarrollo, acepta la advertencia"
+echo ""
+echo "  📊 Los sensores IoT simulan datos automáticamente cada 30 segundos"
+echo "     → Temperature sensors: temp-sensor-001, temp-sensor-002"
+echo "     → Soil moisture sensors: soil-sensor-001, soil-sensor-002"
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
+echo "✨ ¡Todo listo! Pasos siguientes:"
+echo ""
+echo "   1. Abre https://localhost en tu navegador"
+echo "   2. Acepta la advertencia del certificado SSL"
+echo "   3. Inicia sesión con: superjefe / P@ssw0rd!"
+echo "   4. Explora el dashboard y la documentación API"
+echo ""
+
+if [ $ERRORS -gt 0 ]; then
+    echo "⚠️  NOTA: Algunos servicios tuvieron problemas al iniciar."
+    echo "   Revisa los logs con los comandos indicados arriba."
+    echo ""
+fi
