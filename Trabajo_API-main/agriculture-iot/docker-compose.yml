@@ -31,6 +31,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:///./database/data.db
       - ALLOWED_ORIGINS=https://localhost,https://127.0.0.1,https://localhost:443
+      - TZ=Europe/Madrid
     volumes:
       - ../database:/app/database  # ✅ Montar desde raíz
       - api-logs:/app/logs
